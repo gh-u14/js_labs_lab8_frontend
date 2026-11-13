@@ -322,6 +322,100 @@
   color: var(--fg-muted);
 }
 
+/* ---------- Settings shell (profile) ---------- */
+
+.ui-settings-shell {
+  min-height: 100dvh;
+  padding: var(--space-6);
+  background: var(--bg-subtle);
+}
+
+.ui-settings-stack {
+  width: min(100%, 40rem);
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.ui-settings-stack__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-short);
+  letter-spacing: -0.02em;
+}
+
+.ui-settings-section__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-short);
+  margin-bottom: var(--space-4);
+}
+
+.ui-settings-block__title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+}
+
+.ui-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ---------- Tabs ---------- */
+
+.ui-tabs {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-1);
+}
+
+.ui-tabs__tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  min-height: 2.75rem;
+  transition:
+    color var(--duration-fast) var(--easing-default),
+    border-color var(--duration-fast) var(--easing-default);
+}
+
+.ui-tabs__tab:hover {
+  color: var(--fg);
+}
+
+.ui-tabs__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.ui-tabs__tab--selected {
+  color: var(--color-solid);
+  border-bottom-color: var(--color-solid);
+}
+
+.ui-tabs__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ui-tabs__panel[hidden] {
+  display: none;
+}
+
 .ui-stack {
   display: flex;
   flex-direction: column;
