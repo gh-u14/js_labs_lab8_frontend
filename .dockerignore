@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+*.md
+.cursor
+tasks
+tmp
+tmp-scaffold
+.DS_Store

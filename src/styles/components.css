@@ -1,0 +1,412 @@
+/**
+ * Local component recipes inspired by Chakra UI (solid / outline / ghost / subtle).
+ * Use class names; no runtime CSS-in-JS dependency.
+ */
+
+/* ---------- Field ---------- */
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  width: 100%;
+}
+
+.ui-field__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+}
+
+.ui-field__required {
+  color: var(--fg-error);
+  margin-inline-start: var(--space-0-5);
+}
+
+.ui-field__helper {
+  font-size: var(--font-size-xs);
+  color: var(--fg-muted);
+}
+
+.ui-field__error {
+  font-size: var(--font-size-xs);
+  color: var(--fg-error);
+}
+
+/* ---------- Input ---------- */
+
+.ui-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--control-h-md);
+  padding-inline: var(--control-px-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--fg);
+  transition:
+    border-color var(--duration-fast) var(--easing-default),
+    box-shadow var(--duration-fast) var(--easing-default),
+    background-color var(--duration-fast) var(--easing-default);
+}
+
+.ui-input::placeholder {
+  color: var(--fg-subtle);
+}
+
+.ui-input:hover:not(:disabled):not([aria-invalid="true"]) {
+  border-color: var(--border-emphasized);
+}
+
+.ui-input:focus-visible {
+  border-color: var(--color-focus-ring);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.ui-input[aria-invalid="true"] {
+  border-color: var(--border-error);
+}
+
+.ui-input[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--red-500) 35%, transparent);
+}
+
+.ui-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-muted);
+}
+
+.ui-input--sm {
+  height: var(--control-h-sm);
+  font-size: var(--font-size-sm);
+}
+
+.ui-input--lg {
+  height: var(--control-h-lg);
+  font-size: var(--font-size-lg);
+}
+
+/* ---------- Button ---------- */
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-h-md);
+  padding-inline: var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background-color var(--duration-fast) var(--easing-default),
+    border-color var(--duration-fast) var(--easing-default),
+    color var(--duration-fast) var(--easing-default),
+    box-shadow var(--duration-fast) var(--easing-default),
+    opacity var(--duration-fast) var(--easing-default);
+}
+
+.ui-button:disabled,
+.ui-button[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-button:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.ui-button--solid {
+  background: var(--color-solid);
+  color: var(--color-contrast);
+}
+
+.ui-button--solid:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-solid-hover);
+}
+
+.ui-button--outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--fg);
+}
+
+.ui-button--outline:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--bg-muted);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  color: var(--fg);
+}
+
+.ui-button--ghost:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--bg-muted);
+}
+
+.ui-button--subtle {
+  background: var(--color-subtle);
+  color: var(--color-fg);
+}
+
+.ui-button--subtle:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-muted);
+}
+
+.ui-button--sm {
+  height: var(--control-h-sm);
+  padding-inline: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.ui-button--lg {
+  height: var(--control-h-lg);
+  padding-inline: var(--space-6);
+  font-size: var(--font-size-lg);
+}
+
+.ui-button--full {
+  width: 100%;
+}
+
+/* ---------- Link ---------- */
+
+.ui-link {
+  color: var(--color-fg);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+.ui-link:hover {
+  text-decoration: underline;
+}
+
+.ui-link:focus-visible {
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Checkbox ---------- */
+
+.ui-checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.ui-checkbox__control {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.1rem;
+  border: 1px solid var(--border-emphasized);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  appearance: none;
+  display: grid;
+  place-content: center;
+  transition:
+    background-color var(--duration-fast) var(--easing-default),
+    border-color var(--duration-fast) var(--easing-default);
+}
+
+.ui-checkbox__control:checked {
+  background: var(--color-solid);
+  border-color: var(--color-solid);
+}
+
+.ui-checkbox__control:checked::before {
+  content: "";
+  width: 0.35rem;
+  height: 0.6rem;
+  border: solid var(--color-contrast);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.ui-checkbox__control:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.ui-checkbox__control:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- Alert ---------- */
+
+.ui-alert {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-style: solid;
+  font-size: var(--font-size-sm);
+}
+
+.ui-alert--error {
+  background: var(--bg-error);
+  border-color: color-mix(in srgb, var(--border-error) 35%, transparent);
+  color: var(--fg-error);
+}
+
+.ui-alert--success {
+  background: var(--bg-success);
+  border-color: color-mix(in srgb, var(--border-success) 35%, transparent);
+  color: var(--fg-success);
+}
+
+.ui-alert--info {
+  background: var(--bg-info);
+  border-color: color-mix(in srgb, var(--border-info) 35%, transparent);
+  color: var(--fg-info);
+}
+
+/* ---------- Panel / surface ---------- */
+
+.ui-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+  padding: var(--space-6);
+}
+
+.ui-separator {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin-block: var(--space-4);
+}
+
+/* ---------- Auth shell ---------- */
+
+.ui-auth-shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--bg-subtle);
+}
+
+.ui-auth-card {
+  width: min(100%, 26rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ui-auth-card__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-short);
+  letter-spacing: -0.02em;
+}
+
+.ui-auth-card__subtitle {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--fg-muted);
+}
+
+.ui-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ui-stack--sm {
+  gap: var(--space-2);
+}
+
+.ui-stack--lg {
+  gap: var(--space-6);
+}
+
+.ui-text-muted {
+  color: var(--fg-muted);
+  font-size: var(--font-size-sm);
+}
+
+.ui-text-center {
+  text-align: center;
+}
+
+/* ---------- OTP (single input + visual slots) ---------- */
+
+.ui-otp {
+  position: relative;
+  width: 100%;
+}
+
+.ui-otp__slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.ui-otp__slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h-lg);
+  min-height: var(--control-h-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  transition:
+    border-color var(--duration-fast) var(--easing-default),
+    box-shadow var(--duration-fast) var(--easing-default);
+}
+
+.ui-otp__slot--active {
+  border-color: var(--color-focus-ring);
+  box-shadow: var(--focus-ring);
+}
+
+.ui-otp__slot--filled {
+  border-color: var(--border-emphasized);
+}
+
+.ui-otp__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  font-size: 1rem;
+  z-index: 1;
+}
+
+.ui-otp:focus-within .ui-otp__slot--active {
+  border-color: var(--color-focus-ring);
+  box-shadow: var(--focus-ring);
+}
+
+.ui-otp:has(.ui-otp__input[aria-invalid="true"]) .ui-otp__slot {
+  border-color: var(--border-error);
+}
