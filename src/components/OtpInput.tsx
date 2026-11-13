@@ -8,6 +8,7 @@ type OtpInputProps = {
   onChange: (value: string) => void
   describedBy?: string
   invalid?: boolean
+  autoFocus?: boolean
 }
 
 function digitsOnly(raw: string): string {
@@ -20,6 +21,7 @@ export function OtpInput({
   onChange,
   describedBy,
   invalid = false,
+  autoFocus = false,
 }: OtpInputProps) {
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(digitsOnly(event.target.value))
@@ -62,9 +64,9 @@ export function OtpInput({
         value={value}
         onChange={handleChange}
         onPaste={handlePaste}
+        autoFocus={autoFocus}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
-        aria-label="Код подтверждения, 6 цифр"
       />
     </div>
   )

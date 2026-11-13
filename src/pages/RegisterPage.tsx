@@ -165,6 +165,7 @@ export function RegisterPage() {
                 onChange={handleOtpChange}
                 describedBy={otpError ? 'otp-error otp-hint' : 'otp-hint'}
                 invalid={Boolean(otpError)}
+                autoFocus
               />
               <p id="otp-hint" className="ui-field__helper">
                 6 цифр. Для проверки используйте 000000.
@@ -185,6 +186,7 @@ export function RegisterPage() {
               className="ui-button ui-button--ghost ui-button--full"
               onClick={() => {
                 setStep(1)
+                setOtp('')
                 setOtpError(null)
               }}
             >
