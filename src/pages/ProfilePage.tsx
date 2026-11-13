@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 type ProfileTab = 'general' | 'security'
 
@@ -35,6 +36,7 @@ const TABS: { id: ProfileTab; label: string }[] = [
 ]
 
 export function ProfilePage() {
+  const navigate = useNavigate()
   const baseId = useId()
   const [tab, setTab] = useState<ProfileTab>('general')
   const [general, setGeneral] = useState<GeneralForm>(initialGeneral)
@@ -87,6 +89,10 @@ export function ProfilePage() {
     setTab(next)
   }
 
+  const handleLogout = () => {
+    navigate('/login')
+  }
+
   const handleTabListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const index = TABS.findIndex((item) => item.id === tab)
     if (index < 0) return
@@ -113,8 +119,15 @@ export function ProfilePage() {
   return (
     <div className="ui-settings-shell">
       <div className="ui-settings-stack">
-        <header>
+        <header className="ui-settings-header">
           <h1 className="ui-settings-stack__title">Настройки профиля</h1>
+          <button
+            type="button"
+            className="ui-button ui-button--outline"
+            onClick={handleLogout}
+          >
+            Выйти
+          </button>
         </header>
 
         <div className="ui-panel ui-settings-panel">

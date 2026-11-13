@@ -338,6 +338,14 @@
   gap: var(--space-6);
 }
 
+.ui-settings-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
 .ui-settings-stack__title {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
