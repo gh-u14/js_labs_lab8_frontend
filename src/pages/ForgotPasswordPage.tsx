@@ -2,14 +2,15 @@ import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OtpInput } from '@/components/OtpInput'
-import type { ContactChannel, RecoveryLookupResult } from '@/lib/identity'
-import { lookupRecovery } from '@/lib/identity'
-
-const MOCK_OTP = '000000'
+import {
+  api,
+  isApiError,
+  type RecoveryStartResponse,
+} from '@/lib/api'
+import { sha256Hex } from '@/lib/hash'
+import type { ContactChannel } from '@/lib/identity'
 
 type ForgotStep = 1 | 2 | 3
-
-type RecoveryState = Extract<RecoveryLookupResult, { found: true }>
 
 function channelHintText(channel: ContactChannel, hint: string): string {
   return channel === 'email'
@@ -22,17 +23,20 @@ export function ForgotPasswordPage() {
   const [step, setStep] = useState<ForgotStep>(1)
   const [identifier, setIdentifier] = useState('')
   const [lookupError, setLookupError] = useState<string | null>(null)
-  const [recovery, setRecovery] = useState<RecoveryState | null>(null)
+  const [recovery, setRecovery] = useState<RecoveryStartResponse | null>(null)
   const [channel, setChannel] = useState<ContactChannel>('email')
   const [otp, setOtp] = useState('')
   const [otpError, setOtpError] = useState<string | null>(null)
+  const [resetToken, setResetToken] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordErrors, setPasswordErrors] = useState<{
     newPassword?: string
     confirmPassword?: string
   }>({})
+  const [formError, setFormError] = useState<string | null>(null)
   const [stubNotice, setStubNotice] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const currentHint =
     recovery?.channels.find((item) => item.channel === channel)?.hint ?? ''
@@ -44,39 +48,69 @@ export function ForgotPasswordPage() {
         ? 'Введите код.'
         : 'Задайте новый пароль.'
 
-  const handleIdentifierSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleIdentifierSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setStubNotice(null)
     setLookupError(null)
-
-    const result = lookupRecovery(identifier)
-    if (!result.found) {
-      setRecovery(null)
-      setLookupError('Пользователь не найден')
-      return
+    setFormError(null)
+    setSubmitting(true)
+    try {
+      const result = await api<RecoveryStartResponse>('/auth/recovery', {
+        method: 'POST',
+        body: { identifier: identifier.trim() },
+      })
+      setRecovery(result)
+      setChannel(result.channel)
+      setOtp('')
+      setOtpError(null)
+      setStep(2)
+    } catch (error) {
+      if (isApiError(error) && error.code === 'user_not_found') {
+        setRecovery(null)
+        setLookupError(error.message || 'Пользователь не найден')
+        return
+      }
+      if (isApiError(error)) {
+        setLookupError(error.message)
+      } else {
+        setLookupError('Не удалось начать восстановление.')
+      }
+    } finally {
+      setSubmitting(false)
     }
-
-    setRecovery(result)
-    setChannel(result.channel)
-    setOtp('')
-    setOtpError(null)
-    setStep(2)
   }
 
-  const handleOtpSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (otp === MOCK_OTP) {
-      setOtpError(null)
+    setOtpError(null)
+    setSubmitting(true)
+    try {
+      const result = await api<{ resetToken: string }>('/auth/recovery/confirm', {
+        method: 'POST',
+        body: {
+          identifier: identifier.trim(),
+          channel,
+          code: otp,
+        },
+      })
+      setResetToken(result.resetToken)
       setNewPassword('')
       setConfirmPassword('')
       setPasswordErrors({})
+      setFormError(null)
       setStep(3)
-      return
+    } catch (error) {
+      if (isApiError(error)) {
+        setOtpError(error.message)
+      } else {
+        setOtpError('Не удалось подтвердить код.')
+      }
+    } finally {
+      setSubmitting(false)
     }
-    setOtpError('Неверный код. Для проверки используйте 000000.')
   }
 
-  const handlePasswordSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const next: { newPassword?: string; confirmPassword?: string } = {}
     if (!newPassword) next.newPassword = 'Введите новый пароль.'
@@ -85,8 +119,26 @@ export function ForgotPasswordPage() {
       next.confirmPassword = 'Пароли не совпадают.'
     }
     setPasswordErrors(next)
-    if (Object.keys(next).length > 0) return
-    navigate('/login')
+    setFormError(null)
+    if (Object.keys(next).length > 0 || !resetToken) return
+
+    setSubmitting(true)
+    try {
+      const passwordHash = await sha256Hex(newPassword)
+      await api('/auth/recovery/complete', {
+        method: 'POST',
+        body: { resetToken, passwordHash },
+      })
+      navigate('/login')
+    } catch (error) {
+      if (isApiError(error)) {
+        setFormError(error.message)
+      } else {
+        setFormError('Не удалось сохранить пароль.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleOtpChange = (value: string) => {
@@ -143,8 +195,12 @@ export function ForgotPasswordPage() {
                 ) : null}
               </div>
 
-              <button type="submit" className="ui-button ui-button--solid ui-button--full">
-                Далее
+              <button
+                type="submit"
+                className="ui-button ui-button--solid ui-button--full"
+                disabled={submitting}
+              >
+                {submitting ? 'Поиск…' : 'Далее'}
               </button>
             </form>
 
@@ -244,13 +300,18 @@ export function ForgotPasswordPage() {
               ) : null}
             </div>
 
-            <button type="submit" className="ui-button ui-button--solid ui-button--full">
-              Подтвердить
+            <button
+              type="submit"
+              className="ui-button ui-button--solid ui-button--full"
+              disabled={submitting}
+            >
+              {submitting ? 'Проверка…' : 'Подтвердить'}
             </button>
 
             <button
               type="button"
               className="ui-button ui-button--ghost ui-button--full"
+              disabled={submitting}
               onClick={() => {
                 setStep(1)
                 setOtp('')
@@ -339,13 +400,24 @@ export function ForgotPasswordPage() {
               ) : null}
             </div>
 
-            <button type="submit" className="ui-button ui-button--solid ui-button--full">
-              Сохранить
+            {formError ? (
+              <p className="ui-alert ui-alert--error" role="alert">
+                {formError}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              className="ui-button ui-button--solid ui-button--full"
+              disabled={submitting}
+            >
+              {submitting ? 'Сохранение…' : 'Сохранить'}
             </button>
 
             <button
               type="button"
               className="ui-button ui-button--ghost ui-button--full"
+              disabled={submitting}
               onClick={() => {
                 setStep(2)
                 setOtp('')

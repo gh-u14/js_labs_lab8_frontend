@@ -1,18 +1,44 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { api, isApiError } from '@/lib/api'
+import { sha256Hex } from '@/lib/hash'
+import { normalizeLogin } from '@/lib/identity'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
   const [stubNotice, setStubNotice] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setStubNotice(null)
-    navigate('/profile')
+    setFormError(null)
+    setSubmitting(true)
+    try {
+      const passwordHash = await sha256Hex(password)
+      await api('/auth/login', {
+        method: 'POST',
+        body: {
+          login: normalizeLogin(login),
+          passwordHash,
+          rememberMe,
+        },
+      })
+      navigate('/profile')
+    } catch (error) {
+      if (isApiError(error)) {
+        setFormError(error.message)
+      } else {
+        setFormError('Не удалось войти.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleStubClick = (label: string) => {
@@ -40,9 +66,10 @@ export function LoginPage() {
               type="text"
               autoComplete="username"
               value={login}
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 setLogin(event.target.value)
-              }
+                if (formError) setFormError(null)
+              }}
             />
           </div>
 
@@ -57,9 +84,10 @@ export function LoginPage() {
               type="password"
               autoComplete="current-password"
               value={password}
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 setPassword(event.target.value)
-              }
+                if (formError) setFormError(null)
+              }}
             />
           </div>
 
@@ -77,8 +105,18 @@ export function LoginPage() {
             <span>Запомнить меня</span>
           </label>
 
-          <button type="submit" className="ui-button ui-button--solid ui-button--full">
-            Войти
+          {formError ? (
+            <p className="ui-alert ui-alert--error" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            className="ui-button ui-button--solid ui-button--full"
+            disabled={submitting}
+          >
+            {submitting ? 'Вход…' : 'Войти'}
           </button>
         </form>
 

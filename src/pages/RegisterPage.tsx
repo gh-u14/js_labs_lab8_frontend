@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OtpInput } from '@/components/OtpInput'
+import { api, isApiError } from '@/lib/api'
+import { sha256Hex } from '@/lib/hash'
 import type { ContactChannel } from '@/lib/identity'
 import {
   emailErrorMessage,
@@ -13,8 +15,6 @@ import {
   normalizePhone,
   phoneErrorMessage,
 } from '@/lib/identity'
-
-const MOCK_OTP = '000000'
 
 type RegisterStep = 1 | 2
 
@@ -45,9 +45,11 @@ export function RegisterPage() {
   const [step, setStep] = useState<RegisterStep>(1)
   const [account, setAccount] = useState<AccountForm>(emptyAccount)
   const [errors, setErrors] = useState<FieldErrors>({})
+  const [formError, setFormError] = useState<string | null>(null)
   const [otp, setOtp] = useState('')
   const [otpError, setOtpError] = useState<string | null>(null)
   const [channel, setChannel] = useState<ContactChannel>('email')
+  const [submitting, setSubmitting] = useState(false)
 
   const availableChannels = useMemo(() => {
     const channels: ContactChannel[] = []
@@ -60,6 +62,7 @@ export function RegisterPage() {
     (field: keyof AccountForm) => (event: ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value
       setAccount((prev) => ({ ...prev, [field]: value }))
+      setFormError(null)
       setErrors((prev) => {
         const next = { ...prev }
         delete next[field]
@@ -99,35 +102,86 @@ export function RegisterPage() {
     return next
   }
 
-  const handleAccountSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleAccountSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const nextErrors = validateAccount()
     setErrors(nextErrors)
+    setFormError(null)
     if (Object.keys(nextErrors).length > 0) return
 
-    const channels: ContactChannel[] = []
-    if (account.email.trim() && isValidEmail(account.email)) channels.push('email')
-    if (account.phone.trim() && isValidPhone(account.phone)) channels.push('phone')
-    setChannel(channels[0] ?? 'email')
-    setAccount((prev) => ({
-      ...prev,
-      login: normalizeLogin(prev.login),
-      email: prev.email.trim() ? normalizeEmail(prev.email) : '',
-      phone: prev.phone.trim() ? normalizePhone(prev.phone) : '',
-    }))
-    setOtp('')
-    setOtpError(null)
-    setStep(2)
+    const login = normalizeLogin(account.login)
+    const email = account.email.trim() ? normalizeEmail(account.email) : undefined
+    const phone = account.phone.trim() ? normalizePhone(account.phone) : undefined
+
+    setSubmitting(true)
+    try {
+      const passwordHash = await sha256Hex(account.password)
+      await api('/auth/register', {
+        method: 'POST',
+        body: {
+          login,
+          ...(email ? { email } : {}),
+          ...(phone ? { phone } : {}),
+          passwordHash,
+        },
+      })
+
+      const channels: ContactChannel[] = []
+      if (email && isValidEmail(email)) channels.push('email')
+      if (phone && isValidPhone(phone)) channels.push('phone')
+      setChannel(channels[0] ?? 'email')
+      setAccount((prev) => ({
+        ...prev,
+        login,
+        email: email ?? '',
+        phone: phone ?? '',
+      }))
+      setOtp('')
+      setOtpError(null)
+      setStep(2)
+    } catch (error) {
+      if (isApiError(error)) {
+        setFormError(error.message)
+        if (error.fields?.includes('login')) {
+          setErrors((prev) => ({ ...prev, login: error.message }))
+        }
+        if (error.fields?.includes('email')) {
+          setErrors((prev) => ({ ...prev, email: error.message }))
+        }
+        if (error.fields?.includes('phone')) {
+          setErrors((prev) => ({ ...prev, phone: error.message }))
+        }
+      } else {
+        setFormError('Не удалось зарегистрироваться.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleOtpSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleOtpSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (otp === MOCK_OTP) {
-      setOtpError(null)
+    setOtpError(null)
+    setSubmitting(true)
+    try {
+      await api('/auth/register/confirm', {
+        method: 'POST',
+        body: {
+          login: account.login,
+          channel,
+          code: otp,
+        },
+      })
       navigate('/login')
-      return
+    } catch (error) {
+      if (isApiError(error)) {
+        setOtpError(error.message)
+      } else {
+        setOtpError('Не удалось подтвердить код.')
+      }
+    } finally {
+      setSubmitting(false)
     }
-    setOtpError('Неверный код. Для проверки используйте 000000.')
   }
 
   const handleOtpChange = (value: string) => {
@@ -314,8 +368,18 @@ export function RegisterPage() {
               ) : null}
             </div>
 
-            <button type="submit" className="ui-button ui-button--solid ui-button--full">
-              Далее
+            {formError ? (
+              <p className="ui-alert ui-alert--error" role="alert">
+                {formError}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              className="ui-button ui-button--solid ui-button--full"
+              disabled={submitting}
+            >
+              {submitting ? 'Отправка…' : 'Далее'}
             </button>
           </form>
         ) : (
@@ -378,13 +442,18 @@ export function RegisterPage() {
               ) : null}
             </div>
 
-            <button type="submit" className="ui-button ui-button--solid ui-button--full">
-              Подтвердить
+            <button
+              type="submit"
+              className="ui-button ui-button--solid ui-button--full"
+              disabled={submitting}
+            >
+              {submitting ? 'Проверка…' : 'Подтвердить'}
             </button>
 
             <button
               type="button"
               className="ui-button ui-button--ghost ui-button--full"
+              disabled={submitting}
               onClick={() => {
                 setStep(1)
                 setOtp('')
