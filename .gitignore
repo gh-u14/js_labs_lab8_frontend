@@ -23,6 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local lab docs / agent config
+# Agent config and task docs live in the parent workspace (.cursor/, tasks/).
+# Ignore copies if they are recreated inside this repo.
 tasks/
 .cursor/

@@ -1,7 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { OtpInput } from '@/components/OtpInput'
+import type { ContactChannel } from '@/lib/identity'
+import {
+  emailErrorMessage,
+  isValidEmail,
+  isValidPhone,
+  loginErrorMessage,
+  normalizeEmail,
+  normalizeLogin,
+  normalizePhone,
+  phoneErrorMessage,
+} from '@/lib/identity'
 
 const MOCK_OTP = '000000'
 
@@ -15,6 +26,8 @@ type AccountForm = {
   confirmPassword: string
 }
 
+type FieldErrors = Partial<Record<keyof AccountForm | 'contacts', string>>
+
 const emptyAccount: AccountForm = {
   email: '',
   login: '',
@@ -23,20 +36,85 @@ const emptyAccount: AccountForm = {
   confirmPassword: '',
 }
 
+function channelLabel(channel: ContactChannel): string {
+  return channel === 'email' ? 'почту' : 'телефон'
+}
+
 export function RegisterPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<RegisterStep>(1)
   const [account, setAccount] = useState<AccountForm>(emptyAccount)
+  const [errors, setErrors] = useState<FieldErrors>({})
   const [otp, setOtp] = useState('')
   const [otpError, setOtpError] = useState<string | null>(null)
+  const [channel, setChannel] = useState<ContactChannel>('email')
+
+  const availableChannels = useMemo(() => {
+    const channels: ContactChannel[] = []
+    if (account.email.trim()) channels.push('email')
+    if (account.phone.trim()) channels.push('phone')
+    return channels
+  }, [account.email, account.phone])
 
   const updateField =
     (field: keyof AccountForm) => (event: ChangeEvent<HTMLInputElement>) => {
-      setAccount((prev) => ({ ...prev, [field]: event.target.value }))
+      const value = event.target.value
+      setAccount((prev) => ({ ...prev, [field]: value }))
+      setErrors((prev) => {
+        const next = { ...prev }
+        delete next[field]
+        if (field === 'email' || field === 'phone') delete next.contacts
+        if (field === 'password' || field === 'confirmPassword') {
+          delete next.password
+          delete next.confirmPassword
+        }
+        return next
+      })
     }
+
+  const validateAccount = (): FieldErrors => {
+    const next: FieldErrors = {}
+    const loginErr = loginErrorMessage(account.login)
+    if (loginErr) next.login = loginErr
+
+    const email = account.email.trim()
+    const phone = account.phone.trim()
+    if (!email && !phone) {
+      next.contacts = 'Укажите почту или телефон.'
+    }
+    const emailErr = emailErrorMessage(account.email)
+    if (emailErr) next.email = emailErr
+    const phoneErr = phoneErrorMessage(account.phone)
+    if (phoneErr) next.phone = phoneErr
+
+    if (!account.password) {
+      next.password = 'Введите пароль.'
+    }
+    if (!account.confirmPassword) {
+      next.confirmPassword = 'Подтвердите пароль.'
+    } else if (account.password !== account.confirmPassword) {
+      next.confirmPassword = 'Пароли не совпадают.'
+    }
+
+    return next
+  }
 
   const handleAccountSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const nextErrors = validateAccount()
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    const channels: ContactChannel[] = []
+    if (account.email.trim() && isValidEmail(account.email)) channels.push('email')
+    if (account.phone.trim() && isValidPhone(account.phone)) channels.push('phone')
+    setChannel(channels[0] ?? 'email')
+    setAccount((prev) => ({
+      ...prev,
+      login: normalizeLogin(prev.login),
+      email: prev.email.trim() ? normalizeEmail(prev.email) : '',
+      phone: prev.phone.trim() ? normalizePhone(prev.phone) : '',
+    }))
     setOtp('')
     setOtpError(null)
     setStep(2)
@@ -57,6 +135,11 @@ export function RegisterPage() {
     if (otpError) setOtpError(null)
   }
 
+  const describedBy = (...ids: Array<string | false | null | undefined>) => {
+    const joined = ids.filter(Boolean).join(' ')
+    return joined || undefined
+  }
+
   return (
     <div className="ui-auth-shell">
       <div className="ui-panel ui-auth-card">
@@ -68,12 +151,46 @@ export function RegisterPage() {
           <p className="ui-auth-card__subtitle">
             {step === 1
               ? 'Создайте аккаунт, чтобы продолжить.'
-              : 'Введите код из сообщения.'}
+              : availableChannels.length === 1
+                ? `Введите код, отправленный на ${channelLabel(availableChannels[0])}.`
+                : 'Выберите канал и введите код.'}
           </p>
         </header>
 
         {step === 1 ? (
           <form className="ui-stack" onSubmit={handleAccountSubmit} noValidate>
+            <div className="ui-field">
+              <label className="ui-field__label" htmlFor="register-login">
+                Логин
+                <span className="ui-field__required" aria-hidden="true">
+                  *
+                </span>
+              </label>
+              <input
+                className="ui-input"
+                id="register-login"
+                name="login"
+                type="text"
+                autoComplete="username"
+                value={account.login}
+                onChange={updateField('login')}
+                aria-invalid={Boolean(errors.login)}
+                aria-describedby={describedBy(
+                  'register-login-hint',
+                  errors.login && 'register-login-error',
+                )}
+                required
+              />
+              <p id="register-login-hint" className="ui-field__helper">
+                3–32 символа, латиница в нижнем регистре, цифры и . _ -
+              </p>
+              {errors.login ? (
+                <p id="register-login-error" className="ui-field__error" role="alert">
+                  {errors.login}
+                </p>
+              ) : null}
+            </div>
+
             <div className="ui-field">
               <label className="ui-field__label" htmlFor="register-email">
                 Почта
@@ -86,22 +203,18 @@ export function RegisterPage() {
                 autoComplete="email"
                 value={account.email}
                 onChange={updateField('email')}
+                aria-invalid={Boolean(errors.email || errors.contacts)}
+                aria-describedby={describedBy(
+                  'register-contacts-hint',
+                  errors.email && 'register-email-error',
+                  errors.contacts && 'register-contacts-error',
+                )}
               />
-            </div>
-
-            <div className="ui-field">
-              <label className="ui-field__label" htmlFor="register-login">
-                Логин
-              </label>
-              <input
-                className="ui-input"
-                id="register-login"
-                name="login"
-                type="text"
-                autoComplete="username"
-                value={account.login}
-                onChange={updateField('login')}
-              />
+              {errors.email ? (
+                <p id="register-email-error" className="ui-field__error" role="alert">
+                  {errors.email}
+                </p>
+              ) : null}
             </div>
 
             <div className="ui-field">
@@ -113,15 +226,38 @@ export function RegisterPage() {
                 id="register-phone"
                 name="phone"
                 type="tel"
+                inputMode="numeric"
                 autoComplete="tel"
                 value={account.phone}
                 onChange={updateField('phone')}
+                aria-invalid={Boolean(errors.phone || errors.contacts)}
+                aria-describedby={describedBy(
+                  'register-contacts-hint',
+                  errors.phone && 'register-phone-error',
+                  errors.contacts && 'register-contacts-error',
+                )}
               />
+              <p id="register-contacts-hint" className="ui-field__helper">
+                Нужна почта или телефон. Можно указать оба.
+              </p>
+              {errors.phone ? (
+                <p id="register-phone-error" className="ui-field__error" role="alert">
+                  {errors.phone}
+                </p>
+              ) : null}
+              {errors.contacts ? (
+                <p id="register-contacts-error" className="ui-field__error" role="alert">
+                  {errors.contacts}
+                </p>
+              ) : null}
             </div>
 
             <div className="ui-field">
               <label className="ui-field__label" htmlFor="register-password">
                 Пароль
+                <span className="ui-field__required" aria-hidden="true">
+                  *
+                </span>
               </label>
               <input
                 className="ui-input"
@@ -131,12 +267,25 @@ export function RegisterPage() {
                 autoComplete="new-password"
                 value={account.password}
                 onChange={updateField('password')}
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={
+                  errors.password ? 'register-password-error' : undefined
+                }
+                required
               />
+              {errors.password ? (
+                <p id="register-password-error" className="ui-field__error" role="alert">
+                  {errors.password}
+                </p>
+              ) : null}
             </div>
 
             <div className="ui-field">
               <label className="ui-field__label" htmlFor="register-confirm-password">
                 Подтверждение пароля
+                <span className="ui-field__required" aria-hidden="true">
+                  *
+                </span>
               </label>
               <input
                 className="ui-input"
@@ -146,7 +295,23 @@ export function RegisterPage() {
                 autoComplete="new-password"
                 value={account.confirmPassword}
                 onChange={updateField('confirmPassword')}
+                aria-invalid={Boolean(errors.confirmPassword)}
+                aria-describedby={
+                  errors.confirmPassword
+                    ? 'register-confirm-password-error'
+                    : undefined
+                }
+                required
               />
+              {errors.confirmPassword ? (
+                <p
+                  id="register-confirm-password-error"
+                  className="ui-field__error"
+                  role="alert"
+                >
+                  {errors.confirmPassword}
+                </p>
+              ) : null}
             </div>
 
             <button type="submit" className="ui-button ui-button--solid ui-button--full">
@@ -155,6 +320,42 @@ export function RegisterPage() {
           </form>
         ) : (
           <form className="ui-stack" onSubmit={handleOtpSubmit} noValidate>
+            {availableChannels.length > 1 ? (
+              <fieldset className="ui-field">
+                <legend className="ui-field__label">Куда отправить код</legend>
+                <div
+                  className="ui-radio-group"
+                  role="radiogroup"
+                  aria-label="Канал подтверждения"
+                >
+                  <label className="ui-radio" htmlFor="register-channel-email">
+                    <input
+                      className="ui-radio__control"
+                      id="register-channel-email"
+                      type="radio"
+                      name="channel"
+                      value="email"
+                      checked={channel === 'email'}
+                      onChange={() => setChannel('email')}
+                    />
+                    <span>Почта ({account.email})</span>
+                  </label>
+                  <label className="ui-radio" htmlFor="register-channel-phone">
+                    <input
+                      className="ui-radio__control"
+                      id="register-channel-phone"
+                      type="radio"
+                      name="channel"
+                      value="phone"
+                      checked={channel === 'phone'}
+                      onChange={() => setChannel('phone')}
+                    />
+                    <span>Телефон ({account.phone})</span>
+                  </label>
+                </div>
+              </fieldset>
+            ) : null}
+
             <div className="ui-field">
               <label className="ui-field__label" htmlFor="otp">
                 Код подтверждения

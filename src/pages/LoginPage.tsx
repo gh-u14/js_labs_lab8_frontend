@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const [identifier, setIdentifier] = useState('')
+  const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [stubNotice, setStubNotice] = useState<string | null>(null)
@@ -30,18 +30,18 @@ export function LoginPage() {
 
         <form className="ui-stack" onSubmit={handleSubmit} noValidate>
           <div className="ui-field">
-            <label className="ui-field__label" htmlFor="login-identifier">
-              Телефон, почта или логин
+            <label className="ui-field__label" htmlFor="login-login">
+              Логин
             </label>
             <input
               className="ui-input"
-              id="login-identifier"
-              name="identifier"
+              id="login-login"
+              name="login"
               type="text"
               autoComplete="username"
-              value={identifier}
+              value={login}
               onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                setIdentifier(event.target.value)
+                setLogin(event.target.value)
               }
             />
           </div>
