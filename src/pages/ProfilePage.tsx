@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useState } from 'react'
-import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { OtpInput } from '@/components/OtpInput'
 import { api, isApiError, type Profile } from '@/lib/api'
@@ -56,6 +56,22 @@ function channelTitle(channel: ContactChannel): string {
   return channel === 'email' ? 'Почта' : 'Телефон'
 }
 
+function clearConfirmCopy(
+  channel: ContactChannel,
+  value: string,
+): { title: string; text: string } {
+  if (channel === 'email') {
+    return {
+      title: 'Очистить почту?',
+      text: `Адрес ${value} будет удалён.`,
+    }
+  }
+  return {
+    title: 'Очистить телефон?',
+    text: `Номер ${value} будет удалён.`,
+  }
+}
+
 function generalFromProfile(profile: Profile): GeneralForm {
   return {
     login: profile.login,
@@ -85,10 +101,14 @@ export function ProfilePage() {
   }>({})
   const [generalSaved, setGeneralSaved] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
+  const [offerPasswordRecovery, setOfferPasswordRecovery] = useState(false)
   const [bindNotice, setBindNotice] = useState<string | null>(null)
   const [contactNotice, setContactNotice] = useState<string | null>(null)
   const [contactError, setContactError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<ContactAction | null>(null)
+  const [pendingClear, setPendingClear] = useState<ContactChannel | null>(null)
+  const clearDialogRef = useRef<HTMLDialogElement>(null)
+  const clearCancelRef = useRef<HTMLButtonElement>(null)
   const [otp, setOtp] = useState('')
   const [otpError, setOtpError] = useState<string | null>(null)
   const [draftEmail, setDraftEmail] = useState('')
@@ -98,6 +118,17 @@ export function ProfilePage() {
     phone?: string
   }>({})
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    const dialog = clearDialogRef.current
+    if (!dialog) return
+    if (pendingClear && !dialog.open) {
+      dialog.showModal()
+      clearCancelRef.current?.focus()
+    } else if (!pendingClear && dialog.open) {
+      dialog.close()
+    }
+  }, [pendingClear])
 
   const tabIds = {
     general: `${baseId}-tab-general`,
@@ -178,6 +209,7 @@ export function ProfilePage() {
     (field: keyof PasswordForm) => (event: ChangeEvent<HTMLInputElement>) => {
       setPassword((prev) => ({ ...prev, [field]: event.target.value }))
       setPasswordSaved(false)
+      if (field === 'currentPassword') setOfferPasswordRecovery(false)
       setPasswordErrors((prev) => {
         const next = { ...prev }
         delete next[field]
@@ -239,6 +271,7 @@ export function ProfilePage() {
       next.confirmPassword = 'Пароли не совпадают.'
     }
     setPasswordErrors(next)
+    setOfferPasswordRecovery(false)
     if (Object.keys(next).length > 0) return
 
     setSubmitting(true)
@@ -256,6 +289,13 @@ export function ProfilePage() {
       setPassword(emptyPassword)
       setPasswordSaved(true)
     } catch (error) {
+      if (isApiError(error) && error.code === 'invalid_credentials') {
+        setPasswordErrors({
+          currentPassword: error.message || 'Неверный текущий пароль',
+        })
+        setOfferPasswordRecovery(true)
+        return
+      }
       if (isApiError(error) && error.status === 401) {
         navigate('/login', { replace: true })
         return
@@ -342,6 +382,12 @@ export function ProfilePage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const confirmClear = async () => {
+    if (!pendingClear) return
+    await clearContact(pendingClear)
+    setPendingClear(null)
   }
 
   const clearContact = async (channel: ContactChannel) => {
@@ -432,6 +478,16 @@ export function ProfilePage() {
       // Still leave the UI even if logout request fails.
     }
     navigate('/login')
+  }
+
+  const goToPasswordRecovery = async () => {
+    setSubmitting(true)
+    try {
+      await api('/auth/logout', { method: 'POST' })
+    } catch {
+      // Recovery does not need the profile session.
+    }
+    navigate('/forgot-password')
   }
 
   const handleTabListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -621,7 +677,12 @@ export function ProfilePage() {
                     !clearAllowed ? `profile-clear-${channel}-hint` : undefined
                   }
                   onClick={() => {
-                    void clearContact(channel)
+                    setPendingClear(channel)
+                    const dialog = clearDialogRef.current
+                    if (dialog && pendingClear === channel && !dialog.open) {
+                      dialog.showModal()
+                      clearCancelRef.current?.focus()
+                    }
                   }}
                 >
                   Очистить
@@ -667,6 +728,14 @@ export function ProfilePage() {
       </div>
     )
   }
+
+  const clearCopy =
+    pendingClear && profile
+      ? clearConfirmCopy(
+          pendingClear,
+          pendingClear === 'email' ? (profile.email ?? '') : (profile.phone ?? ''),
+        )
+      : null
 
   return (
     <div className="ui-settings-shell">
@@ -851,7 +920,7 @@ export function ProfilePage() {
                       : undefined
                   }
                 />
-                {passwordErrors.currentPassword ? (
+                {passwordErrors.currentPassword && !offerPasswordRecovery ? (
                   <p
                     id="profile-current-password-error"
                     className="ui-field__error"
@@ -859,6 +928,27 @@ export function ProfilePage() {
                   >
                     {passwordErrors.currentPassword}
                   </p>
+                ) : null}
+                {offerPasswordRecovery && passwordErrors.currentPassword ? (
+                  <div className="ui-stack ui-stack--sm">
+                    <p
+                      id="profile-current-password-error"
+                      className="ui-alert ui-alert--error"
+                      role="alert"
+                    >
+                      {passwordErrors.currentPassword}
+                    </p>
+                    <button
+                      type="button"
+                      className="ui-button ui-button--outline"
+                      disabled={submitting}
+                      onClick={() => {
+                        void goToPasswordRecovery()
+                      }}
+                    >
+                      Восстановить пароль
+                    </button>
+                  </div>
                 ) : null}
               </div>
 
@@ -940,10 +1030,7 @@ export function ProfilePage() {
             <hr className="ui-separator" />
 
             <div className="ui-stack">
-              <h3 className="ui-settings-block__title">Способы входа</h3>
-              <p className="ui-text-muted">
-                Привязка провайдеров — заглушки, без реального OAuth.
-              </p>
+              <h3 className="ui-settings-block__title">Добавить способ входа</h3>
 
               <div className="ui-stack ui-stack--sm">
                 <button
@@ -978,6 +1065,60 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <dialog
+        ref={clearDialogRef}
+        className="ui-dialog"
+        aria-labelledby={`${baseId}-clear-title`}
+        aria-describedby={`${baseId}-clear-desc`}
+        onKeyDown={(event: KeyboardEvent<HTMLDialogElement>) => {
+          if (event.key !== 'Escape') return
+          event.preventDefault()
+          if (!submitting) setPendingClear(null)
+        }}
+        onCancel={(event) => {
+          if (submitting) event.preventDefault()
+        }}
+        onClose={() => {
+          setPendingClear(null)
+        }}
+        onClick={(event: MouseEvent<HTMLDialogElement>) => {
+          if (submitting) return
+          if (event.target === event.currentTarget) setPendingClear(null)
+        }}
+      >
+        {clearCopy ? (
+          <div className="ui-dialog__panel">
+            <h2 id={`${baseId}-clear-title`} className="ui-dialog__title">
+              {clearCopy.title}
+            </h2>
+            <p id={`${baseId}-clear-desc`} className="ui-dialog__text">
+              {clearCopy.text}
+            </p>
+            <div className="ui-dialog__actions">
+              <button
+                ref={clearCancelRef}
+                type="button"
+                className="ui-button ui-button--outline"
+                disabled={submitting}
+                onClick={() => setPendingClear(null)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="ui-button ui-button--danger"
+                disabled={submitting}
+                onClick={() => {
+                  void confirmClear()
+                }}
+              >
+                {submitting ? 'Очистка…' : 'Очистить'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </dialog>
     </div>
   )
 }

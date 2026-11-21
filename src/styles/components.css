@@ -162,6 +162,15 @@
   background: var(--color-muted);
 }
 
+.ui-button--danger {
+  background: var(--red-600);
+  color: var(--white);
+}
+
+.ui-button--danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--red-700);
+}
+
 .ui-button--sm {
   height: var(--control-h-sm);
   padding-inline: var(--space-3);
@@ -609,4 +618,67 @@
 
 .ui-otp:has(.ui-otp__input[aria-invalid="true"]) .ui-otp__slot {
   border-color: var(--border-error);
+}
+
+/* ---------- Dialog ---------- */
+
+.ui-dialog {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: var(--space-6);
+  border: 0;
+  background: transparent;
+}
+
+.ui-dialog:not([open]) {
+  display: none;
+}
+
+.ui-dialog[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-dialog::backdrop {
+  background: color-mix(in srgb, var(--bg-inverted) 45%, transparent);
+}
+
+.ui-dialog__panel {
+  width: min(100%, 24rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-panel);
+  color: var(--fg);
+  box-shadow: var(--shadow-md);
+}
+
+.ui-dialog__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-short);
+}
+
+.ui-dialog__text {
+  font-size: var(--font-size-sm);
+  color: var(--fg-muted);
+}
+
+.ui-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.ui-dialog__actions .ui-button {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
 }

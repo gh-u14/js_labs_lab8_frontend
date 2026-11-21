@@ -51,7 +51,7 @@ export function classifyIdentifier(value: string): IdentifierKind {
 
 export function loginErrorMessage(value: string): string | null {
   const login = normalizeLogin(value)
-  if (!login) return 'Введите логин.'
+  if (!login) return 'Введите логин'
   if (login.includes('@')) return 'Логин не может содержать @.'
   if (login.length < 3 || login.length > 32) {
     return 'Логин: от 3 до 32 символов.'

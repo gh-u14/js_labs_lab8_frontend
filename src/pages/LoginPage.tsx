@@ -3,7 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, isApiError } from '@/lib/api'
 import { sha256Hex } from '@/lib/hash'
-import { normalizeLogin } from '@/lib/identity'
+import { loginErrorMessage, normalizeLogin } from '@/lib/identity'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -18,6 +18,12 @@ export function LoginPage() {
     event.preventDefault()
     setStubNotice(null)
     setFormError(null)
+
+    if (!normalizeLogin(login)) {
+      setFormError(loginErrorMessage(login))
+      return
+    }
+
     setSubmitting(true)
     try {
       const passwordHash = await sha256Hex(password)
@@ -45,6 +51,8 @@ export function LoginPage() {
     setStubNotice(`${label} — скоро.`)
   }
 
+  const loginMissing = Boolean(formError) && !normalizeLogin(login)
+
   return (
     <div className="ui-auth-shell">
       <div className="ui-panel ui-auth-card">
@@ -66,6 +74,8 @@ export function LoginPage() {
               type="text"
               autoComplete="username"
               value={login}
+              aria-invalid={loginMissing || undefined}
+              aria-describedby={loginMissing ? 'login-form-error' : undefined}
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
                 setLogin(event.target.value)
                 if (formError) setFormError(null)
@@ -106,7 +116,7 @@ export function LoginPage() {
           </label>
 
           {formError ? (
-            <p className="ui-alert ui-alert--error" role="alert">
+            <p id="login-form-error" className="ui-alert ui-alert--error" role="alert">
               {formError}
             </p>
           ) : null}
